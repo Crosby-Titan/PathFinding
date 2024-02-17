@@ -8,14 +8,14 @@ namespace ConsoleApp1
 {
     public class Path
     {
-        private readonly HashSet<PathNode> _Frontier;
+        private readonly PriorityQueue<PathNode> _Frontier;
         private readonly HashSet<Vector2> _AlreadyChecked;
         private readonly IReadOnlyCollection<Vector2> _Obstacles;
         private readonly HashSet<Vector2> _OriginSet;
 
         public Path(HashSet<Vector2> origin,IReadOnlyCollection<Vector2> obstacles)
         {
-            _Frontier = new HashSet<PathNode>();
+            _Frontier = new PriorityQueue<PathNode>(new NodeComparer());
             _AlreadyChecked = new HashSet<Vector2>();
             _Obstacles = obstacles;
             _OriginSet = origin;
@@ -35,6 +35,8 @@ namespace ConsoleApp1
                 gotPath = gotPath.Parent;
             }
 
+            path.Reverse();
+
             return path.AsReadOnly();
         }
 
@@ -43,12 +45,13 @@ namespace ConsoleApp1
             _Frontier.Clear();
             _AlreadyChecked.Clear();
 
-            _Frontier.Add(new PathNode(start, 0, (start - target).DistanceEstimate(), null));
+            double startCost = (start - target).DistanceEstimate();
+
+            _Frontier.Enqueue(new PathNode(start, 0, startCost, null), startCost);
 
             while (_Frontier.Any())
             {
-                double minCost = _Frontier.Min((a) => a.EstimatedTotalCost);
-                PathNode current = _Frontier.First((node) => node.EstimatedTotalCost == minCost);
+                PathNode current = _Frontier.Dequeue();
 
                 _AlreadyChecked.Add(current.Position);
 
@@ -78,11 +81,10 @@ namespace ConsoleApp1
                 bool isObstacle = _Obstacles.Contains(neighbour.Position);
 
                 if (node == null && isOriginVector && !isObstacle)
-                    _Frontier.Add(neighbour);
+                    _Frontier.Enqueue(neighbour,neighbour.EstimatedTotalCost);
                 else if(node != null && neighbour.TraverseDistance < node.TraverseDistance && isOriginVector && !isObstacle)
                 {
-                    _Frontier.Remove(node);
-                    _Frontier.Add(neighbour);
+                    _Frontier.Enqueue(neighbour,neighbour.EstimatedTotalCost);
                 }
             }
         }
